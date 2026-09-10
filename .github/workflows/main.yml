@@ -23,28 +23,39 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK packages
+      - name: Install Android SDK
         run: |
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Extract Android project
+      - name: Extract Android Project
         run: |
+          mkdir -p apk-project
           unzip -q "1Milyar_com_APK_Project_READY.zip" -d apk-project
-          PROJECT_DIR=$(dirname "$(find apk-project -name gradlew -type f | head -1)")
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Install Gradle 8.7
+        run: |
+          wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip -q gradle-8.7-bin.zip -d "$RUNNER_TEMP"
 
       - name: Build APK
         run: |
-          cd "$PROJECT_DIR"
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          cd apk-project/1Milyar_com_APK_Project
+          "$RUNNER_TEMP/gradle-8.7/bin/gradle" assembleDebug --stacktrace
 
       - name: Find APK
         run: |
-          find "$PROJECT_DIR" -name "*.apk" -type f
+          find apk-project -type f -name "*.apk" -print
+          APK=$(find apk-project -type f -name "*.apk" | head -1)
+
+          if [ -z "$APK" ]; then
+            echo "APK tidak ditemukan."
+            exit 1
+          fi
+
+          cp "$APK" "$GITHUB_WORKSPACE/1Milyar-com-debug.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: 1Milyar-com-debug-apk
-          path: '**/build/outputs/apk/debug/*.apk'
+          path: 1Milyar-com-debug.apk
